@@ -1,0 +1,34 @@
+-- StoneGrid
+-- Copyright (c) 2026 Platefobrain
+-- Licensed under the MIT License
+
+## Interface: 30300
+## Title: StoneGrid
+## Notes: Lightweight Party/Raid Frames
+## Author: platefobrain
+## Version: 0.0.1a
+## SavedVariables: StoneGrid_Config, StoneGrid_ProfileDB
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceLocale-3.0\AceLocale-3.0.lua
+Libs\LibHealComm-4.0\LibHealComm-4.0.lua
+
+locales\enUS.lua
+locales\plPL.lua
+locales\deDE.lua
+locales\frFR.lua
+
+Config.lua
+Profiles.lua
+RaidSize.lua
+Utils.lua
+CombatLog.lua
+UnitFrame.lua
+Party.lua
+Raid.lua
+Events.lua
+Core.lua
+Test.lua
+Menu.lua
+MinimapButton.lua
