@@ -1,7 +1,7 @@
 # StoneGrid
 
 > ⚠️ **ALPHA v0.1 — early testing version.**
-> Expect bugs, missing polish, and breaking changes between updates.
+> Expect bugs, and breaking changes between updates.
 > Please report any issues you find.
 
 Lightweight party and raid unit frames addon for **World of Warcraft 3.3.5a (WotLK)**.
