@@ -191,6 +191,7 @@ Includes battleground detection:
 * Warsong Gulch → 10
 * Arathi Basin → 15
 * Eye of the Storm → 15
+* Strand of the Ancients → 15
 * Alterac Valley → 40
 
 ---
