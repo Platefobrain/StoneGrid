@@ -13,6 +13,11 @@ StoneGrid provides a custom unit frame system with party/raid layouts, profiles,
 
 ---
 
+# Screenshot
+![StoneGrid Screenshot](screenshot/general.png)
+![StoneGrid Screenshot](screenshot/profile1.png)
+![StoneGrid Screenshot](screenshot/profile2.png)
+
 # Table of Contents
 
 * [Installation](#installation)
