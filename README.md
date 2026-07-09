@@ -193,6 +193,7 @@ Includes battleground detection:
 * Eye of the Storm → 15
 * Strand of the Ancients → 15
 * Alterac Valley → 40
+* Isle of Conquest → 40
 
 ---
 
