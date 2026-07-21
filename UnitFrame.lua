@@ -34,14 +34,6 @@ end
 -- Match Grid2 defaults: direct + channel + HoT/bomb within the next few seconds.
 local HEALCOMM_TIMEFRAME = 3
 
-local function BuildHealFlags(hc, directOnly)
-    local flags = bit.bor(hc.DIRECT_HEALS, hc.CHANNEL_HEALS)
-    if not directOnly then
-        flags = bit.bor(flags, hc.HOT_HEALS, hc.BOMB_HEALS)
-    end
-    return flags
-end
-
 local function SumHotTickHeal(hc, guid, ownOnly)
     if not hc or not guid then return 0 end
     local playerGUID = UnitGUID("player")
@@ -49,7 +41,12 @@ local function SumHotTickHeal(hc, guid, ownOnly)
 
     if hc.GetHotTickAmount then
         local total = 0
-        for _, entry in ipairs(hc:GetHotTickAmount(guid)) do
+        -- ownOnly: we only want our own casts, so hand the caster filter down
+        -- to GetHotTickAmount and skip every other healer's pending spells at
+        -- the source, instead of building entries for them and discarding
+        -- them right below.
+        local onlyCasterGUID = ownOnly and playerGUID or nil
+        for _, entry in ipairs(hc:GetHotTickAmount(guid, onlyCasterGUID)) do
             local isOwn = entry.casterGUID == playerGUID
             if ownOnly and isOwn or not ownOnly and not isOwn then
                 local tick = tonumber(entry.tickAmount) or 0
@@ -66,21 +63,30 @@ local function SumHotTickHeal(hc, guid, ownOnly)
     return hc:GetOthersHealAmount(guid, hc.HOT_HEALS, timeFrame) or 0
 end
 
--- Returns total incoming heal (own + optional others).
-local function GetIncomingHeal(hc, guid, directOnly, includeOthers)
+-- Returns total incoming heal, combining up to 4 independently-toggleable
+-- sources: your own direct/channel heals, your own HoTs, other healers'
+-- direct/channel heals, and other healers' HoTs.
+local function GetIncomingHeal(hc, guid, showOwnHot, showOwnDirect, includeOthersHot, includeOthersDirect)
     if not hc or not guid then return 0 end
 
     local mod       = hc:GetHealModifier(guid) or 1
-    local flags     = BuildHealFlags(hc, directOnly)
     local timeFrame = GetTime() + HEALCOMM_TIMEFRAME
+    local total     = 0
 
-    if includeOthers then
-        return (hc:GetHealAmount(guid, flags, timeFrame) or 0) * mod
+    if showOwnDirect then
+        total = total + GetOwnHealAmount(hc, guid, bit.bor(hc.DIRECT_HEALS, hc.CHANNEL_HEALS), nil)
+    end
+    if showOwnHot then
+        total = total + SumHotTickHeal(hc, guid, true)
+    end
+    if includeOthersDirect then
+        total = total + (hc:GetOthersHealAmount(guid, bit.bor(hc.DIRECT_HEALS, hc.CHANNEL_HEALS), timeFrame) or 0)
+    end
+    if includeOthersHot then
+        total = total + SumHotTickHeal(hc, guid, false)
     end
 
-    local direct = GetOwnHealAmount(hc, guid, bit.bor(hc.DIRECT_HEALS, hc.CHANNEL_HEALS), nil)
-    local hot    = directOnly and 0 or SumHotTickHeal(hc, guid, true)
-    return (direct + hot) * mod
+    return total * mod
 end
 
 local function HealBarWidth(frameW, healAmount, maxhp)
@@ -222,67 +228,27 @@ local function BottomIconOffset(frame)
     return bs + 1
 end
 
--- CC: stuns, roots, fears, cyclone, incap, slows (spell IDs -> localized names at load)
-local CC_SPELLS
-local CC_SPELL_IDS = {
-    -- stuns
-    {1, 408}, {1, 7922}, {1, 1833}, {1, 8643}, {1, 853}, {1, 10308},
-    {1, 12809}, {1, 22570}, {1, 8983}, {1, 44572}, {1, 30283}, {1, 46968},
-    {1, 24394}, {1, 19577}, {1, 20549}, {1, 30153}, {1, 20253}, {1, 12355},
-    -- fear
-    {2, 5782}, {2, 8122}, {2, 5246}, {2, 5484}, {2, 6358}, {2, 1513},
-    -- cyclone
-    {3, 33786},
-    -- incap
-    {4, 118}, {4, 12824}, {4, 12825}, {4, 12826}, {4, 28271}, {4, 28272},
-    {4, 61305}, {4, 6770}, {4, 2094}, {4, 1776}, {4, 2637}, {4, 19386},
-    {4, 3355}, {4, 14309}, {4, 20066}, {4, 605},
-    -- root
-    {5, 339}, {5, 53308}, {5, 122}, {5, 33395}, {5, 19675}, {5, 50245},
-    {5, 4167}, {5, 19185}, {5, 23694}, {5, 55536},
-    -- slow / immobilize
-    {6, 3409}, {6, 1715}, {6, 5116}, {6, 18223}, {6, 31589}, {6, 8056},
-    {6, 12323}, {6, 6136}, {6, 116}, {6, 120},
-}
-
-local function EnsureCcSpells()
-    if CC_SPELLS then return end
-    CC_SPELLS = {}
-    for _, entry in ipairs(CC_SPELL_IDS) do
-        local pri, id = entry[1], entry[2]
-        local name = GetSpellInfo(id)
-        if name then
-            local key = name:lower()
-            if not CC_SPELLS[key] or pri < CC_SPELLS[key] then
-                CC_SPELLS[key] = pri
-            end
-        end
-    end
-end
-
 local function FindCcDebuff(unit)
-    EnsureCcSpells()
-    local bestIcon, bestDur, bestExp, bestPri = nil, nil, nil, 999
-    for i = 1, 40 do
-        local name, _, icon, _, _, duration, expirationTime = UnitDebuff(unit, i)
-        if not name then break end
-        local pri = CC_SPELLS[name:lower()]
-        if pri and pri < bestPri then
-            bestIcon = icon
-            bestDur = duration or 0
-            bestExp = expirationTime or 0
-            bestPri = pri
-        end
-    end
-    if bestIcon then
-        return bestIcon, bestDur, bestExp
-    end
+    return StoneGrid_PvpDebuffs and StoneGrid_PvpDebuffs:FindDebuff(unit)
 end
 
 local function IsCcDebuff(name)
+    return StoneGrid_PvpDebuffs and StoneGrid_PvpDebuffs:IsPvpDebuff(name)
+end
+
+local function FindPveDebuff(frame, unit)
+    if frame.pveMode == "dungeon" then
+        return StoneGrid_DungeonDebuffs and StoneGrid_DungeonDebuffs:FindDungeonDebuff(unit)
+    end
+    return StoneGrid_RaidDebuffs and StoneGrid_RaidDebuffs:FindRaidDebuff(unit)
+end
+
+local function IsPveDebuff(frame, name)
     if not name then return false end
-    EnsureCcSpells()
-    return CC_SPELLS[name:lower()] ~= nil
+    if frame.pveMode == "dungeon" then
+        return StoneGrid_DungeonDebuffs and StoneGrid_DungeonDebuffs:IsDungeonDebuff(name)
+    end
+    return StoneGrid_RaidDebuffs and StoneGrid_RaidDebuffs:IsRaidDebuff(name)
 end
 
 function StoneGrid_UnitFrame:Create(parent, unit, w, h)
@@ -407,11 +373,18 @@ function StoneGrid_UnitFrame:Create(parent, unit, w, h)
     f.raidIcon:SetSize(16, 16)
     f.raidIcon:Hide()
 
-    f.ccSlot = MakeIconSlot(v)
-    f.ccSlot:SetPoint("CENTER", v, "CENTER", 0, 0)
-    f.ccSlot:Hide()
-    f.showCc = false
-    f.ccIconSize = 20
+    f.pvpSlot = MakeIconSlot(v)
+    f.pvpSlot:SetPoint("CENTER", v, "CENTER", 0, 0)
+    f.pvpSlot:Hide()
+    f.showPvp = false
+    f.pvpIconSize = 20
+
+    f.pveSlot = MakeIconSlot(v)
+    f.pveSlot:SetPoint("CENTER", v, "CENTER", 0, 0)
+    f.pveSlot:Hide()
+    f.showPve = false
+    f.pveIconSize = 16
+    f.pveMode = nil
 
     -- visual zaczyna ukryty; f (secure) zawsze widoczny — kliknięcie na pustym slocie
     -- próbuje targetować nieistniejącą jednostkę, co po prostu nic nie robi
@@ -441,7 +414,8 @@ function StoneGrid_UnitFrame:Update(frame)
         frame.text:SetTextColor(0.7, 0.7, 0.7)
         ApplyHpTextPosition(frame)
         StoneGrid_UnitFrame:UpdateRaidIcon(frame)
-        StoneGrid_UnitFrame:UpdateCcIcon(frame)
+        StoneGrid_UnitFrame:UpdatePvpIcon(frame)
+        StoneGrid_UnitFrame:UpdatePveIcon(frame)
         StoneGrid_UnitFrame:UpdateAuras(frame)
         return
     elseif not UnitIsConnected(unit) then
@@ -452,7 +426,8 @@ function StoneGrid_UnitFrame:Update(frame)
         frame.text:SetTextColor(0.5, 0.5, 0.5)
         ApplyHpTextPosition(frame)
         StoneGrid_UnitFrame:UpdateRaidIcon(frame)
-        StoneGrid_UnitFrame:UpdateCcIcon(frame)
+        StoneGrid_UnitFrame:UpdatePvpIcon(frame)
+        StoneGrid_UnitFrame:UpdatePveIcon(frame)
         StoneGrid_UnitFrame:UpdateAuras(frame)
         return
     end
@@ -476,7 +451,7 @@ function StoneGrid_UnitFrame:Update(frame)
     if hc and maxhp > 0 then
         local guid = UnitGUID(unit)
         if guid then
-            incoming = GetIncomingHeal(hc, guid, cfg.HealBarDirectOnly, cfg.HealBarIncludeOthers)
+            incoming = GetIncomingHeal(hc, guid, cfg.ShowOwnHot, cfg.ShowOwnDirect, cfg.IncludeOthersHot, cfg.IncludeOthersDirect)
         end
     end
     ApplyIncomingHealBar(frame, incoming, hp, maxhp, w, cfg)
@@ -491,7 +466,8 @@ function StoneGrid_UnitFrame:Update(frame)
 
     StoneGrid_UnitFrame:UpdateBorder(frame)
     StoneGrid_UnitFrame:UpdateRaidIcon(frame)
-    StoneGrid_UnitFrame:UpdateCcIcon(frame)
+    StoneGrid_UnitFrame:UpdatePvpIcon(frame)
+    StoneGrid_UnitFrame:UpdatePveIcon(frame)
     StoneGrid_UnitFrame:UpdateAuras(frame)
     StoneGrid_UnitFrame:UpdatePowerBar(frame)
 end
@@ -528,11 +504,11 @@ function StoneGrid_UnitFrame:UpdateRaidIcon(frame)
     icon:Show()
 end
 
-function StoneGrid_UnitFrame:UpdateCcIcon(frame)
-    local slot = frame.ccSlot
+function StoneGrid_UnitFrame:UpdatePvpIcon(frame)
+    local slot = frame.pvpSlot
     if not slot then return end
 
-    if not frame.showCc then
+    if not frame.showPvp then
         slot:Hide()
         slot.expTime = nil
         return
@@ -553,7 +529,61 @@ function StoneGrid_UnitFrame:UpdateCcIcon(frame)
     end
 
     local cfg = StoneGrid_Config or {}
-    local size = frame.ccIconSize or 20
+    local size = frame.pvpIconSize or 20
+    slot:ClearAllPoints()
+    slot:SetSize(size, size)
+    slot:SetPoint("CENTER", frame.visual, "CENTER", 0, HpCenterYOffset(frame))
+    slot.tex:SetTexture(icon)
+
+    local showCD = cfg.ShowCooldown
+    if showCD and dur and dur > 0 and exp and exp > 0 then
+        local fs = cfg.CooldownFontSize or math.max(7, math.floor(size * 0.65))
+        slot.cd:SetReverse(false)
+        slot.cd:SetCooldown(exp - dur, dur)
+        slot.expTime = exp
+        slot.timer:SetFont("Fonts\\FRIZQT__.TTF", fs, "OUTLINE")
+    else
+        slot.cd:SetCooldown(0, 0)
+        slot.expTime = nil
+        slot.timer:SetText("")
+        slot.timer:Hide()
+    end
+    slot.stackText:Hide()
+    slot:Show()
+end
+
+function StoneGrid_UnitFrame:UpdatePveIcon(frame)
+    local slot = frame.pveSlot
+    if not slot then return end
+
+    if not frame.showPve then
+        slot:Hide()
+        slot.expTime = nil
+        return
+    end
+
+    local unit = frame.unit
+    if not UnitExists(unit) or UnitIsDeadOrGhost(unit) or not UnitIsConnected(unit) then
+        slot:Hide()
+        slot.expTime = nil
+        return
+    end
+
+    if frame.pvpSlot and frame.pvpSlot:IsShown() then
+        slot:Hide()
+        slot.expTime = nil
+        return
+    end
+
+    local icon, dur, exp = FindPveDebuff(frame, unit)
+    if not icon then
+        slot:Hide()
+        slot.expTime = nil
+        return
+    end
+
+    local cfg = StoneGrid_Config or {}
+    local size = frame.pveIconSize or 16
     slot:ClearAllPoints()
     slot:SetSize(size, size)
     slot:SetPoint("CENTER", frame.visual, "CENTER", 0, HpCenterYOffset(frame))
@@ -647,7 +677,7 @@ function StoneGrid_UnitFrame:UpdateHealBar(frame)
         local guid = UnitGUID(unit)
         if guid then
             local cfg2 = StoneGrid_Config
-            incoming = GetIncomingHeal(hc, guid, cfg2 and cfg2.HealBarDirectOnly, cfg2 and cfg2.HealBarIncludeOthers)
+            incoming = GetIncomingHeal(hc, guid, cfg2 and cfg2.ShowOwnHot, cfg2 and cfg2.ShowOwnDirect, cfg2 and cfg2.IncludeOthersHot, cfg2 and cfg2.IncludeOthersDirect)
         end
     end
 
@@ -773,8 +803,9 @@ function StoneGrid_UnitFrame:UpdateAuras(frame)
                 for i = 1, 40 do
                     local name, _, icon, count, _, duration, expTime = UnitDebuff(unit, i)
                     if not name then break end
-                    if not next(flt) or flt[name:lower()] then
-                        if not (frame.showCc and IsCcDebuff(name)) then
+                    if not flt[name:lower()] then
+                        if not (frame.showPvp and IsCcDebuff(name))
+                        and not (frame.showPve and IsPveDebuff(frame, name)) then
                             local key = name:lower()
                             local entry = merged[key]
                             if entry then
@@ -802,7 +833,8 @@ function StoneGrid_UnitFrame:UpdateAuras(frame)
         end
     end
 
-    StoneGrid_UnitFrame:UpdateCcIcon(frame)
+    StoneGrid_UnitFrame:UpdatePvpIcon(frame)
+    StoneGrid_UnitFrame:UpdatePveIcon(frame)
 end
 
 -- Resetuje istniejącą ramkę do ponownego użycia (unika tworzenia nowych obiektów).

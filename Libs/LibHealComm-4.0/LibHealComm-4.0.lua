@@ -33,6 +33,18 @@ HealComm.equippedSetCache = HealComm.equippedSetCache or {}
 HealComm.guidToGroup = HealComm.guidToGroup or {}
 HealComm.guidToUnit = HealComm.guidToUnit or {}
 HealComm.pendingHeals = HealComm.pendingHeals or {}
+-- Additive-only index: targetHealCasters[targetGUID][casterGUID] = true for
+-- every caster that currently has (or recently had) ANY pending heal --
+-- HoT, direct, or channel -- touching that target. GetHotTickAmount and
+-- GetOthersHealAmount/GetHealAmount use this to skip scanning every caster
+-- in pendingHeals for every single query. It is deliberately ADDITIVE-ONLY
+-- (we never bother removing entries when a heal ends) -- the real per-entry
+-- validity check inside those functions already filters out anything stale,
+-- so a leftover/stale entry here only costs one extra wasted scan of that
+-- caster's spell list, never a wrong/missing incoming-heal number. That
+-- trade-off is intentional: it means this index can never be the cause of a
+-- "why isn't my heal showing" bug.
+HealComm.targetHealCasters = HealComm.targetHealCasters or {}
 HealComm.tempPlayerList = HealComm.tempPlayerList or {}
 HealComm.activePets = HealComm.activePets or {}
 HealComm.activeHots = HealComm.activeHots or {}
@@ -44,6 +56,7 @@ if( not HealComm.unitToPet ) then
 end
 
 local spellData, hotData, tempPlayerList, pendingHeals = HealComm.spellData, HealComm.hotData, HealComm.tempPlayerList, HealComm.pendingHeals
+local targetHealCasters = HealComm.targetHealCasters
 local equippedSetCache, itemSetsData, talentData = HealComm.equippedSetCache, HealComm.itemSetsData, HealComm.talentData
 local activeHots, activePets = HealComm.activeHots, HealComm.activePets
 
@@ -497,8 +510,13 @@ function HealComm:GetHealAmount(guid, bitFlag, time, casterGUID)
 	if( casterGUID and pendingHeals[casterGUID] ) then
 		amount = filterData(pendingHeals[casterGUID], guid, bitFlag, time)
 	elseif( not casterGUID ) then
-		for _, spells in pairs(pendingHeals) do
-			amount = amount + filterData(spells, guid, bitFlag, time)
+		local casters = guid and targetHealCasters[guid]
+		if( casters ) then
+			for otherGUID in pairs(casters) do
+				if( pendingHeals[otherGUID] ) then
+					amount = amount + filterData(pendingHeals[otherGUID], guid, bitFlag, time)
+				end
+			end
 		end
 	end
 	
@@ -508,9 +526,12 @@ end
 -- Gets healing amounts for everyone except the player using the passed filters
 function HealComm:GetOthersHealAmount(guid, bitFlag, time)
 	local amount = 0
-	for casterGUID, spells in pairs(pendingHeals) do
-		if( casterGUID ~= playerGUID ) then
-			amount = amount + filterData(spells, guid, bitFlag, time)
+	local casters = guid and targetHealCasters[guid]
+	if( not casters ) then return nil end
+
+	for casterGUID in pairs(casters) do
+		if( casterGUID ~= playerGUID and pendingHeals[casterGUID] ) then
+			amount = amount + filterData(pendingHeals[casterGUID], guid, bitFlag, time)
 		end
 	end
 	
@@ -533,12 +554,21 @@ end
 --   for _, entry in ipairs(hots) do
 --     print(GetSpellInfo(entry.spellID), "next tick in", entry.nextTickIn, "for", entry.tickAmount)
 --   end
-function HealComm:GetHotTickAmount(targetGUID)
+function HealComm:GetHotTickAmount(targetGUID, onlyCasterGUID)
 	local result = {}
 	local currentTime = GetTime()
 
-	for casterGUID, spells in pairs(pendingHeals) do
-		for _, pending in pairs(spells) do
+	-- targetHealCasters narrows this from "every caster in pendingHeals" down
+	-- to "casters that have actually touched this target with a HoT". The
+	-- inner loop below still validates guid == targetGUID per entry, so a
+	-- stale/leftover caster in this set just costs one wasted spell-list
+	-- scan -- it can never produce a wrong result.
+	local casters = targetGUID and targetHealCasters[targetGUID]
+	if( not casters ) then return result end
+
+	for casterGUID in pairs(casters) do
+	  if( ( not onlyCasterGUID or casterGUID == onlyCasterGUID ) and pendingHeals[casterGUID] ) then
+		for _, pending in pairs(pendingHeals[casterGUID]) do
 			if( pending.bitType == HOT_HEALS ) then
 				for i = 1, #(pending), 5 do
 					local guid    = pending[i]
@@ -600,10 +630,13 @@ function HealComm:GetHotTickAmount(targetGUID)
 				end
 			end
 		end
+	  end
 	end
 
-	-- Sort by soonest next tick first
-	table.sort(result, function(a, b) return a.nextTickIn < b.nextTickIn end)
+	-- NOTE: results are intentionally left in discovery order. Nothing that
+	-- calls this (StoneGrid's SumHotTickHeal) cares about nextTickIn order --
+	-- it only sums tickAmount across entries -- so sorting here was a wasted
+	-- table.sort() pass plus a fresh comparator closure on every single call.
 	return result
 end
 
@@ -1902,6 +1935,17 @@ local function loadHealList(pending, amount, stack, endTime, ticksLeft, ...)
 	end
 end
 
+local function AddTargetHealCasters(casterGUID, inc, ...)
+	for i = 1, select("#", ...), inc do
+		local rawGUID = select(i, ...)
+		local target = rawGUID and decompressGUID[rawGUID]
+		if( target ) then
+			targetHealCasters[target] = targetHealCasters[target] or {}
+			targetHealCasters[target][casterGUID] = true
+		end
+	end
+end
+
 local function parseDirectHeal(casterGUID, spellID, amount, ...)
 	local spellName = GetSpellInfo(spellID)
 	local unit = guidToUnit[casterGUID]
@@ -1919,6 +1963,7 @@ local function parseDirectHeal(casterGUID, spellID, amount, ...)
 	pending.spellID = spellID
 	pending.bitType = DIRECT_HEALS
 
+	AddTargetHealCasters(casterGUID, 1, ...)
 	loadHealList(pending, amount, 1, 0, nil, ...)
 
 	HealComm.callbacks:Fire("HealComm_HealStarted", casterGUID, spellID, pending.bitType, pending.endTime, unpack(tempPlayerList))
@@ -1936,7 +1981,11 @@ local function parseChannelHeal(casterGUID, spellID, amount, totalTicks, ...)
 	if( not startTime or not endTime ) then return end
 
 	pendingHeals[casterGUID] = pendingHeals[casterGUID] or {}
-	pendingHeals[casterGUID][spellName] = pendingHeals[casterGUID][spellname] or {}
+	-- NOTE: this used to read pendingHeals[casterGUID][spellname] (lowercase)
+	-- on the right-hand side -- a typo referencing an undefined global, which
+	-- always evaluated to nil and so silently forced a brand-new pending
+	-- table on every single update instead of reusing the existing one.
+	pendingHeals[casterGUID][spellName] = pendingHeals[casterGUID][spellName] or {}
 
 	local inc = amount == -1 and 2 or 1
 	local pending = pendingHeals[casterGUID][spellName]
@@ -1950,6 +1999,7 @@ local function parseChannelHeal(casterGUID, spellID, amount, totalTicks, ...)
 	pending.isMultiTarget = (select("#", ...) / inc) > 1
 	pending.bitType = CHANNEL_HEALS
 		
+	AddTargetHealCasters(casterGUID, inc, ...)
 	loadHealList(pending, amount, 1, 0, math.ceil(pending.duration / pending.tickInterval), ...)
 	
 	HealComm.callbacks:Fire("HealComm_HealStarted", casterGUID, spellID, pending.bitType, pending.endTime, unpack(tempPlayerList))
@@ -2029,6 +2079,18 @@ local function parseHotHeal(casterGUID, wasUpdated, spellID, tickAmount, totalTi
 		
 	-- As you can't rely on a hot being the absolutely only one up, have to apply the total amount now :<
 	local ticksLeft = math.ceil((endTime - GetTime()) / pending.tickInterval)
+
+	-- Feed the additive targetHealCasters index (see declaration above) so
+	-- GetHotTickAmount can skip casters that aren't touching a given target.
+	for i = 1, select("#", ...), inc do
+		local rawGUID = select(i, ...)
+		local target = rawGUID and decompressGUID[rawGUID]
+		if( target ) then
+			targetHealCasters[target] = targetHealCasters[target] or {}
+			targetHealCasters[target][casterGUID] = true
+		end
+	end
+
 	loadHealList(pending, tickAmount, stack, endTime, ticksLeft, ...)
 
 	if( not wasUpdated ) then
@@ -2245,7 +2307,7 @@ HealComm.bucketFrame:SetScript("OnUpdate", function(self, elapsed)
 end)
 
 -- Monitor aura changes as well as new hots being cast
-local eventRegistered = {["SPELL_HEAL"] = true, ["SPELL_PERIODIC_HEAL"] = true}
+local eventRegistered = {["SPELL_PERIODIC_HEAL"] = true}
 if( isHealerClass ) then
 	eventRegistered["SPELL_AURA_REMOVED"] = true
 	eventRegistered["SPELL_AURA_APPLIED"] = true
@@ -2261,7 +2323,7 @@ function HealComm:COMBAT_LOG_EVENT_UNFILTERED(timestamp, eventType, sourceGUID, 
 	
 	-- Heal or hot ticked that the library is tracking
 	-- It's more efficient/accurate to have the library keep track of this locally, spamming the comm channel would not be a very good thing especially when a single player can have 4 - 8 hots/channels going on them.
-	if( eventType == "SPELL_HEAL" or eventType == "SPELL_PERIODIC_HEAL" ) then
+	if( eventType == "SPELL_PERIODIC_HEAL" ) then
 		local spellID, spellName, spellSchool = ...
 		local pending = sourceGUID and pendingHeals[sourceGUID] and (pendingHeals[sourceGUID][spellID] or pendingHeals[sourceGUID][spellName])
 		if( pending and pending[destGUID] and pending.bitType and bit.band(pending.bitType, OVERTIME_HEALS) > 0 ) then
@@ -2710,6 +2772,9 @@ local function clearGUIDData()
 	
 	HealComm.pendingHeals = {}
 	pendingHeals = HealComm.pendingHeals
+	
+	HealComm.targetHealCasters = {}
+	targetHealCasters = HealComm.targetHealCasters
 	
 	HealComm.bucketHeals = {}
 	bucketHeals = HealComm.bucketHeals

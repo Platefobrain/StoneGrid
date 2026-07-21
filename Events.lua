@@ -21,8 +21,21 @@ local function EnsureHealCommHooks()
     if not hc then return end
     healCommHooked = true
 
-    local function OnHealUpdate(_, _, _, _, _, ...)
+    local function OnHealUpdate(event, arg1, arg2, arg3, arg4, ...)
         if not StoneGrid_Config then return end
+
+        if event == "HealComm_ModifierChanged" then
+            -- Fire("HealComm_ModifierChanged", guid, modifier) -- only this
+            -- one unit's prediction changed, nothing else needs a refresh.
+            local unit = arg1 and StoneGrid:GetUnitByGUID(arg1)
+            if unit then StoneGrid:UpdateHealBar(unit) end
+            return
+        end
+
+        -- HealStarted/HealUpdated/HealDelayed/HealStopped all fire as
+        -- (casterGUID, spellID, bitType, endTime/interrupted, ...destGUIDs).
+        -- Update exactly the units whose predicted heal changed instead of
+        -- sweeping every tile in the party/raid on every single tick.
         for i = 1, select("#", ...) do
             local guid = select(i, ...)
             if type(guid) == "string" and guid ~= "" then
@@ -30,7 +43,6 @@ local function EnsureHealCommHooks()
                 if unit then StoneGrid:UpdateHealBar(unit) end
             end
         end
-        StoneGrid:UpdateHealBars()
     end
 
     hc.RegisterCallback(StoneGrid_Events, "HealComm_HealStarted", OnHealUpdate)
@@ -70,6 +82,9 @@ StoneGrid_Events:SetScript("OnEvent", function(_, event, ...)
         StoneGrid_Profiles_Init()
         StoneGrid_Config_Init()
         StoneGrid_ApplyBlizzardPartyFrames()
+        if StoneGrid_PvpDebuffs then StoneGrid_PvpDebuffs:ReloadLookup() end
+        if StoneGrid_DungeonDebuffs then StoneGrid_DungeonDebuffs:UpdateZoneSpells() end
+        if StoneGrid_RaidDebuffs then StoneGrid_RaidDebuffs:UpdateZoneSpells() end
         DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00StoneGrid|r zaladowany. /sg = menu")
         EnsureHealCommHooks()
     end
@@ -88,6 +103,8 @@ StoneGrid_Events:SetScript("OnEvent", function(_, event, ...)
     or event == "RAID_ROSTER_UPDATE"
     or event == "UNIT_PET"
     or event == "ZONE_CHANGED_NEW_AREA" then
+        if StoneGrid_DungeonDebuffs then StoneGrid_DungeonDebuffs:UpdateZoneSpells() end
+        if StoneGrid_RaidDebuffs then StoneGrid_RaidDebuffs:UpdateZoneSpells() end
         StoneGrid_ApplyBlizzardPartyFrames()
         if not InCombatLockdown() then
             StoneGrid:UpdateLayout()
@@ -148,7 +165,7 @@ StoneGrid_Events:SetScript("OnEvent", function(_, event, ...)
             if unit then
                 if subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
                     StoneGrid:UpdateHealBar(unit)
-                elseif not StoneGrid_Config.HealBarDirectOnly
+                elseif (StoneGrid_Config.ShowOwnHot or StoneGrid_Config.IncludeOthersHot)
                 and (subEvent == "SPELL_AURA_APPLIED"
                   or subEvent == "SPELL_AURA_REFRESH"
                   or subEvent == "SPELL_AURA_APPLIED_DOSE"
@@ -178,7 +195,7 @@ StoneGrid_Events:SetScript("OnEvent", function(_, event, ...)
     if event == "UNIT_AURA" then
         if StoneGrid_Config then
             StoneGrid:UpdateAuras(arg1)
-            if not StoneGrid_Config.HealBarDirectOnly and IsTrackedUnit(arg1) then
+            if (StoneGrid_Config.ShowOwnHot or StoneGrid_Config.IncludeOthersHot) and IsTrackedUnit(arg1) then
                 StoneGrid:UpdateHealBar(arg1)
             end
         end
@@ -209,9 +226,19 @@ StoneGrid_Events:SetScript("OnEvent", function(_, event, ...)
 end)
 
 local _rangeTimer = 0
+local _castRefreshTimer = 0
+local CAST_HEALBAR_REFRESH_INTERVAL = 0.15
 StoneGrid_Events:SetScript("OnUpdate", function(_, dt)
     if StoneGrid_Config and UnitCastingInfo("player") then
-        StoneGrid:UpdateHealBars()
+        _castRefreshTimer = _castRefreshTimer + dt
+        if _castRefreshTimer >= CAST_HEALBAR_REFRESH_INTERVAL then
+            _castRefreshTimer = 0
+            StoneGrid:UpdateHealBars()
+        end
+    else
+        -- Not casting right now -- reset so the *next* cast start refreshes
+        -- immediately instead of waiting out a stale partial interval.
+        _castRefreshTimer = CAST_HEALBAR_REFRESH_INTERVAL
     end
 
     local deferred = deferredUnits
