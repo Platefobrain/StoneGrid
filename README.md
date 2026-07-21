@@ -1,7 +1,7 @@
 # StoneGrid
 
 > ⚠️ **ALPHA v0.1 — early testing version.**
-> Expect bugs, and breaking changes between updates.
+> Expect bugs, missing polish, and breaking changes between updates.
 > Please report any issues you find.
 
 Lightweight party and raid unit frames addon for **World of Warcraft 3.3.5a (WotLK)**.
@@ -12,12 +12,6 @@ StoneGrid provides a custom unit frame system with party/raid layouts, profiles,
 **Interface:** 30300
 
 ---
-
-# Screenshot
-![StoneGrid Screenshot](screenshot/general.png)
-![StoneGrid Screenshot](screenshot/profile1.png)
-![StoneGrid Screenshot](screenshot/profile2.png)
-![StoneGrid Screenshot](screenshot/profile3.png)
 
 # Table of Contents
 
@@ -197,9 +191,7 @@ Includes battleground detection:
 * Warsong Gulch → 10
 * Arathi Basin → 15
 * Eye of the Storm → 15
-* Strand of the Ancients → 15
 * Alterac Valley → 40
-* Isle of Conquest → 40
 
 ---
 

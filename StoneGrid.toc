@@ -21,6 +21,12 @@ locales\frFR.lua
 
 Config.lua
 Profiles.lua
+PvpDebuffsData.lua
+PvpDebuffs.lua
+DungeonDebuffsData.lua
+DungeonDebuffs.lua
+RaidDebuffsData.lua
+RaidDebuffs.lua
 RaidSize.lua
 Utils.lua
 CombatLog.lua
