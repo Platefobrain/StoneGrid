@@ -35,8 +35,10 @@ function StoneGrid_Config_Init()
     if c.HealBarG     == nil then c.HealBarG     = 0.8 end
     if c.HealBarB     == nil then c.HealBarB     = 0   end
     if c.HealBarA     == nil then c.HealBarA     = 0.5 end
-    if c.HealBarDirectOnly == nil then c.HealBarDirectOnly = false end
-    if c.HealBarIncludeOthers == nil then c.HealBarIncludeOthers = false end
+    if c.ShowOwnHot          == nil then c.ShowOwnHot          = true  end
+    if c.ShowOwnDirect       == nil then c.ShowOwnDirect       = true  end
+    if c.IncludeOthersHot    == nil then c.IncludeOthersHot    = false end
+    if c.IncludeOthersDirect == nil then c.IncludeOthersDirect = false end
     if c.BgDarkR      == nil then c.BgDarkR      = 0.1 end
     if c.BgDarkG      == nil then c.BgDarkG      = 0.1 end
     if c.BgDarkB      == nil then c.BgDarkB      = 0.1 end
@@ -85,7 +87,24 @@ function StoneGrid_Config_Init()
     if c.ShowRaidPowerBar   == nil then c.ShowRaidPowerBar   = false   end
     if c.RaidPowerBarH      == nil then c.RaidPowerBarH      = 3       end
     if c.ShowPartyStuns     == nil then c.ShowPartyStuns     = true    end
+    if c.ShowDungeonDebuffs == nil then
+        if c.ShowPartyPveIcons ~= nil then
+            c.ShowDungeonDebuffs = c.ShowPartyPveIcons
+        else
+            c.ShowDungeonDebuffs = true
+        end
+    end
     if c.PartyCcIconSize    == nil then c.PartyCcIconSize    = 20      end
+    if c.DungeonDebuffIconSize == nil then
+        if c.PartyPveIconSize ~= nil then
+            c.DungeonDebuffIconSize = c.PartyPveIconSize
+        else
+            c.DungeonDebuffIconSize = 20
+        end
+    end
+    if StoneGrid_PvpDebuffs then StoneGrid_PvpDebuffs:InitDefaults(c) end
+    if StoneGrid_DungeonDebuffs then StoneGrid_DungeonDebuffs:InitDefaults(c) end
+    if StoneGrid_RaidDebuffs then StoneGrid_RaidDebuffs:InitDefaults(c) end
     if c.ShowRaidStuns      == nil then c.ShowRaidStuns      = true    end
     if c.RaidCcIconSize     == nil then c.RaidCcIconSize     = 16      end
     if c.HideBlizzardPartyFrames == nil then c.HideBlizzardPartyFrames = false end

@@ -756,6 +756,27 @@ local function BuildMenu()
         s:SetTexture(0.267, 0.267, 0.267, 1.0)
     end
 
+    -- Menu spacing (Debuffs [Position] grid reference)
+    local SEP_GAP = 8
+    local SEP_SECTION = 12
+    local SECTION_CONTENT = 22
+    local POS_GRID_ROW_STEP = 30
+    local POS_GRID_BTN_H = 26
+    local POS_GRID_HEIGHT = POS_GRID_ROW_STEP * 2 + POS_GRID_BTN_H
+    local COOLDOWN_SECTION_H = 64
+    local PET_POS_HEIGHT = 42
+    local SMALL_EDIT_H = 20
+    local FILTER_BLOCK_H = 44
+    local ICON_SIZE_OPTS = { btnOffset = 30, sizeRowOffset = 66, labelOffset = 12 }
+
+    local function SepAfter(bottomY) return bottomY - SEP_GAP end
+    local function SectionAfterSep(sepY) return sepY - SEP_SECTION end
+    local function PosGridLayout(yStart)
+        local bottom = yStart - POS_GRID_HEIGHT
+        local sepY = SepAfter(bottom)
+        return bottom, sepY, SectionAfterSep(sepY)
+    end
+
     local function EditBox(panel, y, val)
         local e = CreateFrame("EditBox", nil, panel)
         e:SetSize(54, 18)
@@ -823,6 +844,12 @@ local function BuildMenu()
     local SAVE_BTN_W  = 155
     local SAVE_BTN_GAP = 14
     local TEST_BTN_W  = 250
+    -- Fixed bottom position for Save/Reset (and the separator above them),
+    -- shared by every panel so they always sit ~10px from the panel's
+    -- bottom edge instead of drifting based on how much content is above.
+    local PANEL_H = 584
+    local BOTTOM_BTN_Y = -(PANEL_H - 10 - 22)
+    local BOTTOM_SEP_Y = BOTTOM_BTN_Y + 10
     local function CenteredSaveResetX()
         local total = SAVE_BTN_W + SAVE_BTN_GAP + SAVE_BTN_W
         local saveX = (MENU_W - total) / 2
@@ -1041,7 +1068,7 @@ local function BuildMenu()
 
     local function PosGrid(panel, yStart, cfgKey)
         local buttons = {}
-        local btnW, btnH, rowStep, gap = 124, 26, 30, 8
+        local btnW, btnH, rowStep, gap = 124, POS_GRID_BTN_H, POS_GRID_ROW_STEP, 8
         local gridW = btnW * 3 + gap * 2
         local startX = (MENU_W - gridW) / 2
         local function Refresh()
@@ -1302,7 +1329,7 @@ local function BuildMenu()
         eb.OORAlpha:SetScript("OnEditFocusLost", ApplyAlpha)
     end
 
-    local raidIconSepY = combatLogSepY - 88
+    local raidIconSepY = combatLogSepY - 78
     Separator(panelMain, raidIconSepY)
     SectionLabel(panelMain, L.SectionRaidIcon or "[ Raid icon ]", raidIconSepY - 12)
 
@@ -1336,7 +1363,7 @@ local function BuildMenu()
         StoneGrid:UpdateAllRaidIcons()
     end)
 
-    local settingsSepY = raidIconSepY - 98
+    local settingsSepY = raidIconSepY - 104
     Separator(panelMain, settingsSepY)
     SectionLabel(panelMain, L.SectionSettings or "[ Settings ]", settingsSepY - 12)
 
@@ -1406,7 +1433,7 @@ local function BuildMenu()
     _, eb.PartyPowerH = MetricLabelAndEB(panelParty, "Power Height:", -118, StoneGrid_Config.PartyPowerBarH or 4)
 
     Separator(panelParty, -142)
-    SectionLabel(panelParty, L.SectionStuns or "[ Stuns ]", -154)
+    SectionLabel(panelParty, L.SectionCharmed or "[ Charmed ]", -154)
     do
         local btn = CreateFrame("Button", nil, panelParty)
         btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -174)
@@ -1416,7 +1443,7 @@ local function BuildMenu()
         brd:SetTexture(0.40, 0.40, 0.40, 1)
         local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
         local lbl2 = panelParty:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl2:SetPoint("TOPLEFT", 38, -174) lbl2:SetText(L.ShowStuns or "Show CC icons") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        lbl2:SetPoint("TOPLEFT", 38, -174) lbl2:SetText(L.ShowPvpIcons or "Show PVP icons") lbl2:SetTextColor(0.85, 0.85, 0.85)
         refresh.chkPartyStuns = function()
             if StoneGrid_Config.ShowPartyStuns then
                 box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
@@ -1433,21 +1460,47 @@ local function BuildMenu()
     end
     ILabel(panelParty, L.SizePx or "Size (px):", 190, -174)
     eb.PartyCcSize = SmallEB(panelParty, 240, -174, StoneGrid_Config.PartyCcIconSize or 20)
-
-    Separator(panelParty, -200)
-
-    -- Party Pets
-    SectionLabel(panelParty, "[ Party Pets ]", -212)
     do
         local btn = CreateFrame("Button", nil, panelParty)
-        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -232)
+        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -196)
         local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
         local brd = btn:CreateTexture(nil, "BORDER")
         brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
         brd:SetTexture(0.40, 0.40, 0.40, 1)
         local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
         local lbl2 = panelParty:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl2:SetPoint("TOPLEFT", 38, -232) lbl2:SetText("Show Party Pets") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        lbl2:SetPoint("TOPLEFT", 38, -196) lbl2:SetText(L.ShowDungeonDebuffs or "Show dungeon debuffs") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        refresh.chkDungeonDebuffs = function()
+            if StoneGrid_Config.ShowDungeonDebuffs ~= false then
+                box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
+            else
+                box:SetTexture(0.15, 0.15, 0.15, 1) mark:SetText("")
+            end
+        end
+        refresh.chkDungeonDebuffs()
+        btn:SetScript("OnClick", function()
+            StoneGrid_Config.ShowDungeonDebuffs = not (StoneGrid_Config.ShowDungeonDebuffs ~= false)
+            refresh.chkDungeonDebuffs()
+            if not StoneGrid_Test:IsActive() and not StoneGrid:ShouldUseRaidFrames() then StoneGrid_Party:Create() end
+        end)
+    end
+    ILabel(panelParty, L.SizePx or "Size (px):", 190, -196)
+    eb.DungeonDebuffSize = SmallEB(panelParty, 240, -196, StoneGrid_Config.DungeonDebuffIconSize or 20)
+
+    Separator(panelParty, -222)
+
+    -- Party Pets
+    SectionLabel(panelParty, "[ Party Pets ]", -234)
+    do
+        local btn = CreateFrame("Button", nil, panelParty)
+        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -254)
+        local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
+        local brd = btn:CreateTexture(nil, "BORDER")
+        brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
+        brd:SetTexture(0.40, 0.40, 0.40, 1)
+        local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
+        local lbl2 = panelParty:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lbl2:SetPoint("TOPLEFT", 38, -254) lbl2:SetText("Show Party Pets") lbl2:SetTextColor(0.85, 0.85, 0.85)
         refresh.chkPartyPets = function()
             if StoneGrid_Config.ShowPartyPets then
                 box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
@@ -1463,29 +1516,29 @@ local function BuildMenu()
         end)
     end
 
-    refresh.partyPetPos = PetPosBtns(panelParty, "PartyPetPosition", -254, function()
+    refresh.partyPetPos = PetPosBtns(panelParty, "PartyPetPosition", -276, function()
         if not InCombatLockdown() and not StoneGrid:ShouldUseRaidFrames() then StoneGrid_Party:Create() end
     end)
 
-    Separator(panelParty, -316)
+    Separator(panelParty, -326)
 
     do
-        ILabel(panelParty, L.Width   or "Width:",   18,  -330)
-        eb.PPW = SmallEB(panelParty, 74, -329, StoneGrid_Config.PartyPetWidth)
-        ILabel(panelParty, L.Height  or "Height:",  132, -330)
-        eb.PPH = SmallEB(panelParty, 194, -329, StoneGrid_Config.PartyPetHeight)
+        ILabel(panelParty, L.Width   or "Width:",   18,  -340)
+        eb.PPW = SmallEB(panelParty, 74, -339, StoneGrid_Config.PartyPetWidth)
+        ILabel(panelParty, L.Height  or "Height:",  132, -340)
+        eb.PPH = SmallEB(panelParty, 194, -339, StoneGrid_Config.PartyPetHeight)
     end
     do
-        ILabel(panelParty, L.Spacing or "Spacing:", 18,  -352)
-        eb.PPSp = SmallEB(panelParty, 74, -351, StoneGrid_Config.PartyPetSpacing)
-        ILabel(panelParty, L.Columns or "Columns:", 132, -352)
-        eb.PPCols = SmallEB(panelParty, 194, -351, StoneGrid_Config.PartyPetColumns or 1)
+        ILabel(panelParty, L.Spacing or "Spacing:", 18,  -362)
+        eb.PPSp = SmallEB(panelParty, 74, -361, StoneGrid_Config.PartyPetSpacing)
+        ILabel(panelParty, L.Columns or "Columns:", 132, -362)
+        eb.PPCols = SmallEB(panelParty, 194, -361, StoneGrid_Config.PartyPetColumns or 1)
     end
 
-    Separator(panelParty, -378)
+    Separator(panelParty, -388)
     do
         local btn = CreateFrame("Button", nil, panelParty)
-        btn:SetSize(TEST_BTN_W, 22) btn:SetPoint("TOPLEFT", CenteredBtnX(TEST_BTN_W), -390)
+        btn:SetSize(TEST_BTN_W, 22) btn:SetPoint("TOPLEFT", CenteredBtnX(TEST_BTN_W), -400)
         local bg = btn:CreateTexture(nil, "BACKGROUND") bg:SetAllPoints()
         local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") lbl:SetAllPoints()
         refreshTestPartyBtn = function()
@@ -1511,10 +1564,10 @@ local function BuildMenu()
         end)
     end
 
-    Separator(panelParty, -424)
+    Separator(panelParty, BOTTOM_SEP_Y)
 
     local saveX, resetX = CenteredSaveResetX()
-    Btn(panelParty, L.Save or "Save", saveX, -434, SAVE_BTN_W, function()
+    Btn(panelParty, L.Save or "Save", saveX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local pw,ph,pc,ps = eb.PW:GetNumber(), eb.PH:GetNumber(), eb.PC:GetNumber(), eb.PS:GetNumber()
         if pw>0 then StoneGrid_Config.PartyWidth=pw end
         if ph>0 then StoneGrid_Config.PartyHeight=ph end
@@ -1524,6 +1577,8 @@ local function BuildMenu()
         if pbH > 0 then StoneGrid_Config.PartyPowerBarH = pbH end
         local ccS = eb.PartyCcSize and eb.PartyCcSize:GetNumber()
         if ccS and ccS > 0 then StoneGrid_Config.PartyCcIconSize = ccS end
+        local dungeonS = eb.DungeonDebuffSize and eb.DungeonDebuffSize:GetNumber()
+        if dungeonS and dungeonS > 0 then StoneGrid_Config.DungeonDebuffIconSize = dungeonS end
         local ppw = eb.PPW:GetNumber()    if ppw  > 0  then StoneGrid_Config.PartyPetWidth   = ppw  end
         local pph = eb.PPH:GetNumber()    if pph  > 0  then StoneGrid_Config.PartyPetHeight  = pph  end
         local pps = eb.PPSp:GetNumber()   if pps  >= 0 then StoneGrid_Config.PartyPetSpacing = pps  end
@@ -1533,10 +1588,11 @@ local function BuildMenu()
         SgMsg(L.MsgPartySaved or "Party saved.")
     end)
 
-    Btn(panelParty, L.Reset or "Reset", resetX, -434, SAVE_BTN_W, function()
+    Btn(panelParty, L.Reset or "Reset", resetX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         StoneGrid_Config.PartyWidth=150 StoneGrid_Config.PartyHeight=30 StoneGrid_Config.PartyColumns=1 StoneGrid_Config.PartySpacing=3
         StoneGrid_Config.ShowPartyPowerBar=false StoneGrid_Config.PartyPowerBarH=4
         StoneGrid_Config.ShowPartyStuns=true StoneGrid_Config.PartyCcIconSize=20
+        StoneGrid_Config.ShowDungeonDebuffs=true StoneGrid_Config.DungeonDebuffIconSize=20
         StoneGrid_Config.ShowPartyPets=false
         StoneGrid_Config.PartyPetWidth=80 StoneGrid_Config.PartyPetHeight=16
         StoneGrid_Config.PartyPetSpacing=2 StoneGrid_Config.PartyPetColumns=1
@@ -1544,7 +1600,9 @@ local function BuildMenu()
         eb.PW:SetNumber(150) eb.PH:SetNumber(30) eb.PC:SetNumber(1) eb.PS:SetNumber(3)
         eb.PartyPowerH:SetNumber(4) refresh.chkPartyPowerBar()
         if eb.PartyCcSize then eb.PartyCcSize:SetNumber(20) end
+        if eb.DungeonDebuffSize then eb.DungeonDebuffSize:SetNumber(20) end
         if refresh.chkPartyStuns then refresh.chkPartyStuns() end
+        if refresh.chkDungeonDebuffs then refresh.chkDungeonDebuffs() end
         if refresh.chkPartyPets then refresh.chkPartyPets() end
         eb.PPW:SetNumber(80) eb.PPH:SetNumber(16) eb.PPSp:SetNumber(2) eb.PPCols:SetNumber(1)
         refresh.partyPetPos()
@@ -1586,6 +1644,8 @@ local function BuildMenu()
         end
         if refresh.chkRaidPowerBar then refresh.chkRaidPowerBar() end
         if refresh.chkRaidStuns then refresh.chkRaidStuns() end
+        if refresh.chkRaidDebuffs then refresh.chkRaidDebuffs() end
+        if eb.RaidRdSize then eb.RaidRdSize:SetNumber(StoneGrid_Config.RaidDebuffIconSize or 16) end
         if refresh.chkRaidPets then refresh.chkRaidPets() end
         if refresh.raidPetPos then refresh.raidPetPos() end
         if refresh.raidSizeButtons then refresh.raidSizeButtons() end
@@ -1630,7 +1690,7 @@ local function BuildMenu()
     _, eb.RaidPowerH = MetricLabelAndEB(panelRaid, "Power Height:", -118, StoneGrid_Config.RaidPowerBarH or 3)
 
     Separator(panelRaid, -142)
-    SectionLabel(panelRaid, L.SectionStuns or "[ Stuns ]", -154)
+    SectionLabel(panelRaid, L.SectionCharmed or "[ Charmed ]", -154)
     do
         local btn = CreateFrame("Button", nil, panelRaid)
         btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -174)
@@ -1640,7 +1700,7 @@ local function BuildMenu()
         brd:SetTexture(0.40, 0.40, 0.40, 1)
         local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
         local lbl2 = panelRaid:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl2:SetPoint("TOPLEFT", 38, -174) lbl2:SetText(L.ShowStuns or "Show CC icons") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        lbl2:SetPoint("TOPLEFT", 38, -174) lbl2:SetText(L.ShowPvpIcons or "Show PVP icons") lbl2:SetTextColor(0.85, 0.85, 0.85)
         refresh.chkRaidStuns = function()
             if StoneGrid_Config.ShowRaidStuns then
                 box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
@@ -1659,20 +1719,49 @@ local function BuildMenu()
     ILabel(panelRaid, L.SizePx or "Size (px):", 190, -174)
     eb.RaidCcSize = SmallEB(panelRaid, 240, -174, StoneGrid_Config.RaidCcIconSize or 16)
 
-    Separator(panelRaid, -200)
-
-    -- Raid Pets
-    SectionLabel(panelRaid, "[ Raid Pets ]", -212)
     do
         local btn = CreateFrame("Button", nil, panelRaid)
-        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -232)
+        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -196)
         local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
         local brd = btn:CreateTexture(nil, "BORDER")
         brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
         brd:SetTexture(0.40, 0.40, 0.40, 1)
         local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
         local lbl2 = panelRaid:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl2:SetPoint("TOPLEFT", 38, -232) lbl2:SetText("Show Raid Pets") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        lbl2:SetPoint("TOPLEFT", 38, -196) lbl2:SetText(L.ShowRaidDebuffs or "Show raid debuffs") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        refresh.chkRaidDebuffs = function()
+            if StoneGrid_Config.ShowRaidDebuffs then
+                box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
+            else
+                box:SetTexture(0.15, 0.15, 0.15, 1) mark:SetText("")
+            end
+        end
+        refresh.chkRaidDebuffs()
+        btn:SetScript("OnClick", function()
+            StoneGrid_Config.ShowRaidDebuffs = not StoneGrid_Config.ShowRaidDebuffs
+            SaveRaidEditToPreset()
+            refresh.chkRaidDebuffs()
+            if not StoneGrid_Test:IsActive() and StoneGrid:ShouldUseRaidFrames() then StoneGrid_Raid:Create() end
+            StoneGrid:UpdateAllAuras()
+        end)
+    end
+    ILabel(panelRaid, L.SizePx or "Size (px):", 190, -196)
+    eb.RaidRdSize = SmallEB(panelRaid, 240, -196, StoneGrid_Config.RaidDebuffIconSize or 16)
+
+    Separator(panelRaid, -222)
+
+    -- Raid Pets
+    SectionLabel(panelRaid, "[ Raid Pets ]", -234)
+    do
+        local btn = CreateFrame("Button", nil, panelRaid)
+        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -254)
+        local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
+        local brd = btn:CreateTexture(nil, "BORDER")
+        brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
+        brd:SetTexture(0.40, 0.40, 0.40, 1)
+        local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
+        local lbl2 = panelRaid:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lbl2:SetPoint("TOPLEFT", 38, -254) lbl2:SetText("Show Raid Pets") lbl2:SetTextColor(0.85, 0.85, 0.85)
         refresh.chkRaidPets = function()
             if StoneGrid_Config.ShowRaidPets then
                 box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
@@ -1688,8 +1777,8 @@ local function BuildMenu()
             if not InCombatLockdown() and StoneGrid:ShouldUseRaidFrames() then StoneGrid_Raid:Create() end
         end)
     end
-    ILabel(panelRaid, L.RaidPetMax or "Max pets:", 132, -232)
-    eb.RaidPetMax = SmallEB(panelRaid, 194, -231, StoneGrid_Config.RaidPetMax or tonumber(StoneGrid_Config.RaidEditSize or "25") or 25)
+    ILabel(panelRaid, L.RaidPetMax or "Max pets:", 132, -254)
+    eb.RaidPetMax = SmallEB(panelRaid, 194, -253, StoneGrid_Config.RaidPetMax or tonumber(StoneGrid_Config.RaidEditSize or "25") or 25)
     eb.RaidPetMax:SetScript("OnEnterPressed", function(s)
         s:ClearFocus()
         local n = s:GetNumber()
@@ -1701,28 +1790,28 @@ local function BuildMenu()
         if StoneGrid_Test.raidActive then StoneGrid_Test:ShowRaid() end
     end)
 
-    refresh.raidPetPos = PetPosBtns(panelRaid, "RaidPetPosition", -254, function()
+    refresh.raidPetPos = PetPosBtns(panelRaid, "RaidPetPosition", -276, function()
         SaveRaidEditToPreset()
         if not InCombatLockdown() and StoneGrid:ShouldUseRaidFrames() then StoneGrid_Raid:Create() end
     end)
 
-    Separator(panelRaid, -316)
+    Separator(panelRaid, -326)
 
     do
-        ILabel(panelRaid, L.Width   or "Width:",   18,  -330)
-        eb.RPW = SmallEB(panelRaid, 74, -329, StoneGrid_Config.RaidPetWidth)
-        ILabel(panelRaid, L.Height  or "Height:",  132, -330)
-        eb.RPH = SmallEB(panelRaid, 194, -329, StoneGrid_Config.RaidPetHeight)
+        ILabel(panelRaid, L.Width   or "Width:",   18,  -340)
+        eb.RPW = SmallEB(panelRaid, 74, -339, StoneGrid_Config.RaidPetWidth)
+        ILabel(panelRaid, L.Height  or "Height:",  132, -340)
+        eb.RPH = SmallEB(panelRaid, 194, -339, StoneGrid_Config.RaidPetHeight)
     end
     do
-        ILabel(panelRaid, L.Spacing or "Spacing:", 18,  -352)
-        eb.RPSp = SmallEB(panelRaid, 74, -351, StoneGrid_Config.RaidPetSpacing)
-        ILabel(panelRaid, L.Columns or "Columns:", 132, -352)
-        eb.RPCols = SmallEB(panelRaid, 194, -351, StoneGrid_Config.RaidPetColumns or 5)
+        ILabel(panelRaid, L.Spacing or "Spacing:", 18,  -362)
+        eb.RPSp = SmallEB(panelRaid, 74, -361, StoneGrid_Config.RaidPetSpacing)
+        ILabel(panelRaid, L.Columns or "Columns:", 132, -362)
+        eb.RPCols = SmallEB(panelRaid, 194, -361, StoneGrid_Config.RaidPetColumns or 5)
     end
 
-    Separator(panelRaid, -378)
-    SectionLabel(panelRaid, L.RaidSizeSection or "[ Raid Size ]", -390)
+    Separator(panelRaid, -388)
+    SectionLabel(panelRaid, L.RaidSizeSection or "[ Raid Size ]", -400)
 
     local RAID_SIZE_PAD = 28
     local RAID_SIZE_W = MENU_W - RAID_SIZE_PAD * 2
@@ -1733,14 +1822,14 @@ local function BuildMenu()
 
     do
         local btn = CreateFrame("Button", nil, panelRaid)
-        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -412)
+        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -422)
         local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
         local brd = btn:CreateTexture(nil, "BORDER")
         brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
         brd:SetTexture(0.40, 0.40, 0.40, 1)
         local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
         local lbl2 = panelRaid:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl2:SetPoint("TOPLEFT", 38, -412)
+        lbl2:SetPoint("TOPLEFT", 38, -422)
         lbl2:SetText(L.RaidSizeAuto or "Auto-detect size in raid")
         lbl2:SetTextColor(0.85, 0.85, 0.85)
         refresh.chkRaidSizeAuto = function()
@@ -1760,7 +1849,7 @@ local function BuildMenu()
     end
 
     local raidDetectLabel = panelRaid:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    raidDetectLabel:SetPoint("TOPLEFT", 18, -434)
+    raidDetectLabel:SetPoint("TOPLEFT", 18, -444)
     raidDetectLabel:SetWidth(MENU_W - 36)
     raidDetectLabel:SetJustifyH("LEFT")
     raidDetectLabel:SetTextColor(0.65, 0.65, 0.65)
@@ -1792,7 +1881,7 @@ local function BuildMenu()
         local bx = RAID_SIZE_X + (i - 1) * (RAID_SIZE_BTN_W + RAID_SIZE_BTN_GAP)
         local btn = CreateFrame("Button", nil, panelRaid)
         btn:SetSize(RAID_SIZE_BTN_W, 22)
-        btn:SetPoint("TOPLEFT", bx, -456)
+        btn:SetPoint("TOPLEFT", bx, -466)
         local bgTex = btn:CreateTexture(nil, "BACKGROUND")
         bgTex:SetAllPoints()
         local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1808,10 +1897,10 @@ local function BuildMenu()
     end
     refresh.raidSizeButtons()
 
-    Separator(panelRaid, -484)
+    Separator(panelRaid, -494)
     do
         local btn = CreateFrame("Button", nil, panelRaid)
-        btn:SetSize(TEST_BTN_W, 22) btn:SetPoint("TOPLEFT", CenteredBtnX(TEST_BTN_W), -496)
+        btn:SetSize(TEST_BTN_W, 22) btn:SetPoint("TOPLEFT", CenteredBtnX(TEST_BTN_W), -506)
         local bg = btn:CreateTexture(nil, "BACKGROUND") bg:SetAllPoints()
         local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") lbl:SetAllPoints()
         refreshTestRaidBtn = function()
@@ -1837,10 +1926,10 @@ local function BuildMenu()
         end)
     end
 
-    Separator(panelRaid, -528)
+    Separator(panelRaid, BOTTOM_SEP_Y)
 
     local saveX, resetX = CenteredSaveResetX()
-    Btn(panelRaid, L.Save or "Save", saveX, -538, SAVE_BTN_W, function()
+    Btn(panelRaid, L.Save or "Save", saveX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local rw,rh,rc,rs = eb.RW:GetNumber(), eb.RH:GetNumber(), eb.RC:GetNumber(), eb.RS:GetNumber()
         if rw>0 then StoneGrid_Config.RaidWidth=rw end
         if rh>0 then StoneGrid_Config.RaidHeight=rh end
@@ -1850,6 +1939,8 @@ local function BuildMenu()
         if pbH > 0 then StoneGrid_Config.RaidPowerBarH = pbH end
         local ccS = eb.RaidCcSize and eb.RaidCcSize:GetNumber()
         if ccS and ccS > 0 then StoneGrid_Config.RaidCcIconSize = ccS end
+        local rdS = eb.RaidRdSize and eb.RaidRdSize:GetNumber()
+        if rdS and rdS > 0 then StoneGrid_Config.RaidDebuffIconSize = rdS end
         local rpw = eb.RPW:GetNumber()    if rpw  > 0  then StoneGrid_Config.RaidPetWidth   = rpw  end
         local rph = eb.RPH:GetNumber()    if rph  > 0  then StoneGrid_Config.RaidPetHeight  = rph  end
         local rps = eb.RPSp:GetNumber()   if rps  >= 0 then StoneGrid_Config.RaidPetSpacing = rps  end
@@ -1863,12 +1954,13 @@ local function BuildMenu()
         SgMsg(L.MsgRaidSaved or "Raid saved.")
     end)
 
-    Btn(panelRaid, L.Reset or "Reset", resetX, -538, SAVE_BTN_W, function()
+    Btn(panelRaid, L.Reset or "Reset", resetX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local sz = StoneGrid_Config.RaidEditSize or "25"
         local p = StoneGrid_GetRaidPreset(StoneGrid_Config, sz)
         p.RaidWidth=80 p.RaidHeight=20 p.RaidColumns=5 p.RaidSpacing=3
         p.ShowRaidPowerBar=false p.RaidPowerBarH=3
         p.ShowRaidStuns=true p.RaidCcIconSize=16
+        p.ShowRaidDebuffs=true p.RaidDebuffIconSize=16
         p.ShowRaidPets=false
         p.RaidPetWidth=80 p.RaidPetHeight=14
         p.RaidPetSpacing=2 p.RaidPetColumns=5
@@ -1956,70 +2048,54 @@ local function BuildMenu()
         "HealBarR","HealBarG","HealBarB","HealBarA", function() StoneGrid:UpdateHealBarColors() end)
 
     do
-        local btn = CreateFrame("Button", nil, panelColors)
-        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -246)
-        local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
-        local brd = btn:CreateTexture(nil, "BORDER")
-        brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
-        brd:SetTexture(0.40, 0.40, 0.40, 1)
-        local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
-        local lbl = panelColors:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl:SetPoint("TOPLEFT", 38, -246) lbl:SetText(L.DirectOnly or "Direct Heals only (no HoTs)")
-        lbl:SetTextColor(0.85, 0.85, 0.85)
-        refresh.chkDirectOnly = function()
-            if StoneGrid_Config.HealBarDirectOnly then
-                box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
-            else
-                box:SetTexture(0.15, 0.15, 0.15, 1) mark:SetText("")
+        local function HealBarCheckbox(x, y, cfgKey, labelText)
+            local btn = CreateFrame("Button", nil, panelColors)
+            btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", x, y)
+            local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
+            local brd = btn:CreateTexture(nil, "BORDER")
+            brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
+            brd:SetTexture(0.40, 0.40, 0.40, 1)
+            local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
+            local lbl = panelColors:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            lbl:SetPoint("TOPLEFT", x + 20, y) lbl:SetText(labelText) lbl:SetTextColor(0.85, 0.85, 0.85)
+            local function Refresh()
+                if StoneGrid_Config[cfgKey] then
+                    box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
+                else
+                    box:SetTexture(0.15, 0.15, 0.15, 1) mark:SetText("")
+                end
             end
+            Refresh()
+            btn:SetScript("OnClick", function()
+                StoneGrid_Config[cfgKey] = not StoneGrid_Config[cfgKey]
+                Refresh()
+                StoneGrid:UpdateHealBars()
+            end)
+            return Refresh
         end
-        refresh.chkDirectOnly()
-        btn:SetScript("OnClick", function()
-            StoneGrid_Config.HealBarDirectOnly = not StoneGrid_Config.HealBarDirectOnly
-            refresh.chkDirectOnly()
-            StoneGrid:UpdateAll()
-            StoneGrid:UpdateHealBars()
-        end)
+
+        refresh.chkShowOwnHot = HealBarCheckbox(18, -246, "ShowOwnHot",
+            L.ShowOwnHot or "Show incoming HoT healing (mine)")
+        refresh.chkShowOwnDirect = HealBarCheckbox(18, -272, "ShowOwnDirect",
+            L.ShowOwnDirect or "Show incoming direct healing (mine)")
+        refresh.chkIncludeOthersHot = HealBarCheckbox(18, -298, "IncludeOthersHot",
+            L.IncludeOthersHot or "Include other players' HoT healing")
+        refresh.chkIncludeOthersDirect = HealBarCheckbox(18, -324, "IncludeOthersDirect",
+            L.IncludeOthersDirect or "Include other players' direct healing")
     end
 
+    Separator(panelColors, -348)
+    SectionLabel(panelColors, "[ Target ]", -360)
     do
         local btn = CreateFrame("Button", nil, panelColors)
-        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -272)
-        local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
-        local brd = btn:CreateTexture(nil, "BORDER")
-        brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
-        brd:SetTexture(0.40, 0.40, 0.40, 1)
-        local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
-        local lbl = panelColors:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl:SetPoint("TOPLEFT", 38, -272) lbl:SetText(L.IncludeOthers or "Include other players' heals")
-        lbl:SetTextColor(0.85, 0.85, 0.85)
-        refresh.chkIncludeOthers = function()
-            if StoneGrid_Config.HealBarIncludeOthers then
-                box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
-            else
-                box:SetTexture(0.15, 0.15, 0.15, 1) mark:SetText("")
-            end
-        end
-        refresh.chkIncludeOthers()
-        btn:SetScript("OnClick", function()
-            StoneGrid_Config.HealBarIncludeOthers = not StoneGrid_Config.HealBarIncludeOthers
-            refresh.chkIncludeOthers()
-            StoneGrid:UpdateHealBars()
-        end)
-    end
-
-    Separator(panelColors, -298)
-    SectionLabel(panelColors, "[ Target ]", -310)
-    do
-        local btn = CreateFrame("Button", nil, panelColors)
-        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -330)
+        btn:SetSize(16, 16) btn:SetPoint("TOPLEFT", 18, -382)
         local box = btn:CreateTexture(nil, "BACKGROUND") box:SetAllPoints()
         local brd = btn:CreateTexture(nil, "BORDER")
         brd:SetPoint("TOPLEFT", -1, 1) brd:SetPoint("BOTTOMRIGHT", 1, -1)
         brd:SetTexture(0.40, 0.40, 0.40, 1)
         local mark = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") mark:SetAllPoints()
         local lbl2 = panelColors:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        lbl2:SetPoint("TOPLEFT", 38, -330) lbl2:SetText("Target highlight") lbl2:SetTextColor(0.85, 0.85, 0.85)
+        lbl2:SetPoint("TOPLEFT", 38, -382) lbl2:SetText("Target highlight") lbl2:SetTextColor(0.85, 0.85, 0.85)
         refresh.chkTargetHL = function()
             if StoneGrid_Config.TargetHighlight then
                 box:SetTexture(0.2, 0.6, 0.2, 1) mark:SetText("|cffffffff+|r")
@@ -2035,13 +2111,13 @@ local function BuildMenu()
         end)
     end
 
-    refresh.swatchTarget = ColorSwatch(panelColors, -354, "Color:",
+    refresh.swatchTarget = ColorSwatch(panelColors, -406, "Color:",
         "TargetHighlightR", "TargetHighlightG", "TargetHighlightB", "TargetHighlightA",
         function() StoneGrid:UpdateBorderColors() end)
 
-    Separator(panelColors, -384)
+    Separator(panelColors, BOTTOM_SEP_Y)
 
-    Btn(panelColors, L.Save or "Save", saveX, -394, SAVE_BTN_W, function()
+    Btn(panelColors, L.Save or "Save", saveX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local s = eb.BorderSize:GetNumber()
         if s >= 0 then StoneGrid_Config.BorderSize = s end
         StoneGrid:UpdateBorderColors()
@@ -2052,20 +2128,22 @@ local function BuildMenu()
         SgMsg(L.MsgColorsSaved or "Colors saved.")
     end)
 
-    Btn(panelColors, L.Reset or "Reset", resetX, -394, SAVE_BTN_W, function()
+    Btn(panelColors, L.Reset or "Reset", resetX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local c = StoneGrid_Config
         c.HpBarR=0    c.HpBarG=0.8  c.HpBarB=0    c.HpBarA=1.0 c.HpBarClass=true
         c.NameClassColor=false
         c.HealBarR=0  c.HealBarG=0.8 c.HealBarB=0  c.HealBarA=0.5
-        c.HealBarDirectOnly=false c.HealBarIncludeOthers=false
+        c.ShowOwnHot=true c.ShowOwnDirect=true c.IncludeOthersHot=false c.IncludeOthersDirect=false
         c.BgDarkR=0.1 c.BgDarkG=0.1 c.BgDarkB=0.1 c.BgDarkA=1.0
         c.BorderR=0.3 c.BorderG=0.3 c.BorderB=0.3 c.BorderA=1.0 c.BorderSize=1
         c.TargetHighlight=true
         c.TargetHighlightR=1.0 c.TargetHighlightG=0.8 c.TargetHighlightB=0.0 c.TargetHighlightA=1.0
         if refresh.chkHpClass       then refresh.chkHpClass()       end
         if refresh.chkNameClass     then refresh.chkNameClass()     end
-        if refresh.chkDirectOnly    then refresh.chkDirectOnly()    end
-        if refresh.chkIncludeOthers then refresh.chkIncludeOthers() end
+        if refresh.chkShowOwnHot          then refresh.chkShowOwnHot()          end
+        if refresh.chkShowOwnDirect       then refresh.chkShowOwnDirect()       end
+        if refresh.chkIncludeOthersHot    then refresh.chkIncludeOthersHot()    end
+        if refresh.chkIncludeOthersDirect then refresh.chkIncludeOthersDirect() end
         if refresh.chkTargetHL      then refresh.chkTargetHL()      end
         if refresh.swatchHp         then refresh.swatchHp()         end
         if refresh.swatchHeal        then refresh.swatchHeal()       end
@@ -2121,6 +2199,7 @@ local function BuildMenu()
 
         ILabel(panel, L.StackFont or "Stack font (px):", 18, y - 46)
         eb[stackKey] = SmallEB(panel, 160, y - 46, StoneGrid_Config.StackFontSize or 6)
+        return y - COOLDOWN_SECTION_H
     end
 
     -- ============================================================
@@ -2130,9 +2209,14 @@ local function BuildMenu()
         return sz
     end
 
-    local function BuildAuraSizePicker(panel, sectionY, editKey, refreshKey, saveFn, loadFn)
+    local function BuildAuraSizePicker(panel, sectionY, editKey, refreshKey, saveFn, loadFn, opts)
+        opts = opts or {}
+        local labelOffset = opts.labelOffset or 12
+        local btnOffset   = opts.btnOffset or 34
+        local sizeRowOffset = opts.sizeRowOffset or 82
+
         Separator(panel, sectionY)
-        SectionLabel(panel, L.AuraIconSizeSection or "[ Icon size ]", sectionY - 12)
+        SectionLabel(panel, L.AuraIconSizeSection or "[ Icon size ]", sectionY - labelOffset)
 
         local buttons = {}
         local btnGap = 6
@@ -2154,7 +2238,7 @@ local function BuildMenu()
             end
         end
 
-        local btnY = sectionY - 34
+        local btnY = sectionY - btnOffset
         for i, sz in ipairs(StoneGrid_AuraSizes) do
             local bx = startX + (i - 1) * (btnW + btnGap)
             local btn = CreateFrame("Button", nil, panel)
@@ -2174,7 +2258,7 @@ local function BuildMenu()
             buttons[#buttons + 1] = { size = sz, bg = bgTex, lbl = lbl }
         end
         refresh[refreshKey]()
-        return sectionY - 82
+        return sectionY - sizeRowOffset
     end
 
     local function SaveBuffIconToPreset()
@@ -2206,22 +2290,25 @@ local function BuildMenu()
     eb.BuffFilter = FilterBox(panelBuffs, -92, StoneGrid_Config.BuffFilter)
 
     Label(panelBuffs, L.Position or "Position:", -126)
-    refresh.buffPos = PosGrid(panelBuffs, -144, "BuffPosition")
+    local buffPosY = -144
+    refresh.buffPos = PosGrid(panelBuffs, buffPosY, "BuffPosition")
 
-    Separator(panelBuffs, -238)
-    SectionLabel(panelBuffs, L.SectionCooldowns or "[ Cooldowns ]", -250)
-    CooldownSection(panelBuffs, -272, "BuffCdFont", "BuffStackFont")
+    local _, buffPosSepY, buffCooldownTitleY = PosGridLayout(buffPosY)
+    Separator(panelBuffs, buffPosSepY)
+    SectionLabel(panelBuffs, L.SectionCooldowns or "[ Cooldowns ]", buffCooldownTitleY)
+    local buffCooldownBottom = CooldownSection(panelBuffs, buffCooldownTitleY - SECTION_CONTENT, "BuffCdFont", "BuffStackFont")
 
-    local buffIconSizeY = BuildAuraSizePicker(panelBuffs, -354, "BuffEditSize", "buffSizeButtons", SaveBuffIconToPreset, LoadBuffIconFromPreset)
+    local buffIconSizeSepY = SepAfter(buffCooldownBottom)
+    local buffIconSizeY = BuildAuraSizePicker(panelBuffs, buffIconSizeSepY, "BuffEditSize", "buffSizeButtons", SaveBuffIconToPreset, LoadBuffIconFromPreset, ICON_SIZE_OPTS)
     ILabel(panelBuffs, L.SizePx or "Size (px):", 18, buffIconSizeY)
     eb.BuffIconSize = SmallEB(panelBuffs, 90, buffIconSizeY, StoneGrid_Config.BuffIconSize)
     ILabel(panelBuffs, L.Max or "Max:", 190, buffIconSizeY)
     eb.BuffMaxIcons = SmallEB(panelBuffs, 240, buffIconSizeY, StoneGrid_Config.BuffMaxIcons)
     LoadBuffIconFromPreset()
 
-    Separator(panelBuffs, buffIconSizeY - 28)
+    Separator(panelBuffs, BOTTOM_SEP_Y)
 
-    Btn(panelBuffs, L.Save or "Save", saveX, buffIconSizeY - 48, SAVE_BTN_W, function()
+    Btn(panelBuffs, L.Save or "Save", saveX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local c = StoneGrid_Config
         local bs=eb.BuffIconSize:GetNumber()  local bm=eb.BuffMaxIcons:GetNumber()
         local cf=eb.BuffCdFont:GetNumber()    local sf=eb.BuffStackFont:GetNumber()
@@ -2235,7 +2322,7 @@ local function BuildMenu()
         SgMsg(L.MsgBuffsSaved or "Buff settings saved.")
     end)
 
-    Btn(panelBuffs, L.Reset or "Reset", resetX, buffIconSizeY - 48, SAVE_BTN_W, function()
+    Btn(panelBuffs, L.Reset or "Reset", resetX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local c = StoneGrid_Config
         c.ShowBuffs=true c.BuffPosition="TOPRIGHT" c.BuffIconSize=12 c.BuffMaxIcons=4 c.BuffFilter=""
         c.BuffReverse=false c.BuffOnlyMine=false
@@ -2280,45 +2367,131 @@ local function BuildMenu()
 
     refresh.debuffEditLoad = LoadDebuffIconFromPreset
 
-    SectionLabel(panelDebuffs, L.Debuffs or "[ Debuffs ]", -8)
+    -- ============================================================
+    -- Sub-page pager: Debuffs tab has more content than reliably fits.
+    -- Page 1 = core debuff settings. Page 2 = Extra Spells (PVP/Dungeon/Raid
+    -- custom IDs). Both are children of panelDebuffs so Save/Reset (parented
+    -- directly to panelDebuffs) work for either page's fields regardless of
+    -- which one is currently shown.
+    -- ============================================================
+    local debuffPage1 = CreateFrame("Frame", nil, panelDebuffs)
+    debuffPage1:SetAllPoints(panelDebuffs)
+    local debuffPage2 = CreateFrame("Frame", nil, panelDebuffs)
+    debuffPage2:SetAllPoints(panelDebuffs)
 
-    refresh.chkDebuffs       = Checkbox(panelDebuffs, "ShowDebuffs",   L.ShowDebuffs or "Show debuffs", 18,  -28)
-    refresh.chkDebuffReverse = Checkbox(panelDebuffs, "DebuffReverse", L.Reverse     or "Reverse",      190, -28)
+    do
+        local page = 1
+        local btn1 = CreateFrame("Button", nil, panelDebuffs)
+        btn1:SetSize(22, 20) btn1:SetPoint("TOP", panelDebuffs, "TOP", -13, -6)
+        local brd1 = btn1:CreateTexture(nil, "BACKGROUND")
+        brd1:SetPoint("TOPLEFT", -1, 1) brd1:SetPoint("BOTTOMRIGHT", 1, -1) brd1:SetTexture(0.40, 0.40, 0.40, 1)
+        local bg1 = btn1:CreateTexture(nil, "BORDER") bg1:SetAllPoints()
+        local txt1 = btn1:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") txt1:SetAllPoints() txt1:SetText("1")
+        txt1:SetTextColor(0.780, 0.780, 0.780)
 
-    Label(panelDebuffs, L.FilterLabel or "Filter (comma-separated):", -54)
-    eb.DebuffFilter = FilterBox(panelDebuffs, -70, StoneGrid_Config.DebuffFilter)
+        local btn2 = CreateFrame("Button", nil, panelDebuffs)
+        btn2:SetSize(22, 20) btn2:SetPoint("TOP", panelDebuffs, "TOP", 13, -6)
+        local brd2 = btn2:CreateTexture(nil, "BACKGROUND")
+        brd2:SetPoint("TOPLEFT", -1, 1) brd2:SetPoint("BOTTOMRIGHT", 1, -1) brd2:SetTexture(0.40, 0.40, 0.40, 1)
+        local bg2 = btn2:CreateTexture(nil, "BORDER") bg2:SetAllPoints()
+        local txt2 = btn2:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") txt2:SetAllPoints() txt2:SetText("2")
+        txt2:SetTextColor(0.780, 0.780, 0.780)
 
-    Label(panelDebuffs, L.Position or "Position:", -104)
-    refresh.debuffPos = PosGrid(panelDebuffs, -122, "DebuffPosition")
+        local function RefreshPager()
+            local c1 = page == 1 and COL_ACTIVE or COL_INACTIVE
+            local c2 = page == 2 and COL_ACTIVE or COL_INACTIVE
+            bg1:SetTexture(c1[1], c1[2], c1[3], 0.95)
+            bg2:SetTexture(c2[1], c2[2], c2[3], 0.95)
+        end
+        local function SetPage(p)
+            page = p
+            if p == 1 then debuffPage1:Show() debuffPage2:Hide()
+            else debuffPage1:Hide() debuffPage2:Show() end
+            RefreshPager()
+        end
+        btn1:SetScript("OnClick", function() SetPage(1) end)
+        btn2:SetScript("OnClick", function() SetPage(2) end)
+        SetPage(1)
+    end
 
-    Separator(panelDebuffs, -216)
-    SectionLabel(panelDebuffs, L.SectionCooldowns or "[ Cooldowns ]", -228)
-    CooldownSection(panelDebuffs, -250, "DebuffCdFont", "DebuffStackFont")
+    SectionLabel(debuffPage1, L.Debuffs or "[ Debuffs ]", -26)
 
-    local debuffIconSizeY = BuildAuraSizePicker(panelDebuffs, -332, "DebuffEditSize", "debuffSizeButtons", SaveDebuffIconToPreset, LoadDebuffIconFromPreset)
-    ILabel(panelDebuffs, L.SizePx or "Size (px):", 18, debuffIconSizeY)
-    eb.DebuffIconSize = SmallEB(panelDebuffs, 90, debuffIconSizeY, StoneGrid_Config.DebuffIconSize)
-    ILabel(panelDebuffs, L.Max or "Max:", 190, debuffIconSizeY)
-    eb.DebuffMaxIcons = SmallEB(panelDebuffs, 240, debuffIconSizeY, StoneGrid_Config.DebuffMaxIcons)
+    refresh.chkDebuffs       = Checkbox(debuffPage1, "ShowDebuffs",   L.ShowDebuffs or "Show debuffs", 18,  -46)
+    refresh.chkDebuffReverse = Checkbox(debuffPage1, "DebuffReverse", L.Reverse     or "Reverse",      190, -46)
+
+    Label(debuffPage1, L.DebuffHideLabel or "Hide (comma-separated):", -72)
+    eb.DebuffFilter = FilterBox(debuffPage1, -88, StoneGrid_Config.DebuffFilter)
+
+    Label(debuffPage1, L.Position or "Position:", -122)
+    local debuffPosY = -140
+    refresh.debuffPos = PosGrid(debuffPage1, debuffPosY, "DebuffPosition")
+
+    local _, debuffPosSepY, debuffCooldownTitleY = PosGridLayout(debuffPosY)
+    Separator(debuffPage1, debuffPosSepY)
+    SectionLabel(debuffPage1, L.SectionCooldowns or "[ Cooldowns ]", debuffCooldownTitleY)
+    local debuffCooldownBottom = CooldownSection(debuffPage1, debuffCooldownTitleY - SECTION_CONTENT, "DebuffCdFont", "DebuffStackFont")
+
+    local debuffIconSizeSepY = SepAfter(debuffCooldownBottom)
+    local debuffIconSizeY = BuildAuraSizePicker(debuffPage1, debuffIconSizeSepY, "DebuffEditSize", "debuffSizeButtons", SaveDebuffIconToPreset, LoadDebuffIconFromPreset, ICON_SIZE_OPTS)
+    ILabel(debuffPage1, L.SizePx or "Size (px):", 18, debuffIconSizeY)
+    eb.DebuffIconSize = SmallEB(debuffPage1, 90, debuffIconSizeY, StoneGrid_Config.DebuffIconSize)
+    ILabel(debuffPage1, L.Max or "Max:", 190, debuffIconSizeY)
+    eb.DebuffMaxIcons = SmallEB(debuffPage1, 240, debuffIconSizeY, StoneGrid_Config.DebuffMaxIcons)
     LoadDebuffIconFromPreset()
 
-    Separator(panelDebuffs, debuffIconSizeY - 28)
+    -- Page 2: Extra Spells, laid out fresh from the top instead of chained
+    -- below page 1 -- this is the block that used to overflow the panel.
+    local debuffExtraTitleY = -26
+    SectionLabel(debuffPage2, L.SectionExtraSpells or "[ Extra spells ]", debuffExtraTitleY)
 
-    Btn(panelDebuffs, L.Save or "Save", saveX, debuffIconSizeY - 48, SAVE_BTN_W, function()
+    local pvpExtraTitleY = debuffExtraTitleY - SECTION_CONTENT
+    SectionLabel(debuffPage2, L.SectionExtraPvp or "[ PVP ]", pvpExtraTitleY)
+    local pvpCustomLabelY = pvpExtraTitleY - SECTION_CONTENT
+    Label(debuffPage2, L.PvpDebuffCustomLabel or "Extra PVP spell IDs (comma-separated):", pvpCustomLabelY)
+    eb.PvpDebuffCustom = FilterBox(debuffPage2, pvpCustomLabelY - 16, StoneGrid_Config.PvpDebuffCustom or "")
+
+    local dungeonExtraSepY = SepAfter(pvpCustomLabelY - 16 - 28)
+    Separator(debuffPage2, dungeonExtraSepY)
+    local dungeonExtraTitleY = SectionAfterSep(dungeonExtraSepY)
+    SectionLabel(debuffPage2, L.SectionExtraDungeon or "[ Dungeon ]", dungeonExtraTitleY)
+    local dungeonCustomLabelY = dungeonExtraTitleY - SECTION_CONTENT
+    Label(debuffPage2, L.DungeonDebuffCustomLabel or "Extra dungeon spell IDs (comma-separated):", dungeonCustomLabelY)
+    eb.DungeonDebuffCustom = FilterBox(debuffPage2, dungeonCustomLabelY - 16, StoneGrid_Config.DungeonDebuffCustom or "")
+
+    local raidExtraSepY = SepAfter(dungeonCustomLabelY - 16 - 28)
+    Separator(debuffPage2, raidExtraSepY)
+    local raidExtraTitleY = SectionAfterSep(raidExtraSepY)
+    SectionLabel(debuffPage2, L.SectionExtraRaid or "[ Raid ]", raidExtraTitleY)
+    local raidCustomLabelY = raidExtraTitleY - SECTION_CONTENT
+    Label(debuffPage2, L.RaidDebuffCustomLabel or "Extra raid spell IDs (comma-separated):", raidCustomLabelY)
+    eb.RaidDebuffCustom = FilterBox(debuffPage2, raidCustomLabelY - 16, StoneGrid_Config.RaidDebuffCustom or "")
+
+    -- Save/Reset stay fixed to panelDebuffs itself (not either page), pinned
+    -- to the shared bottom position (BOTTOM_SEP_Y/BOTTOM_BTN_Y) used by
+    -- every panel now.
+    Separator(panelDebuffs, BOTTOM_SEP_Y)
+
+    Btn(panelDebuffs, L.Save or "Save", saveX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local c = StoneGrid_Config
         local ds=eb.DebuffIconSize:GetNumber()  local dm=eb.DebuffMaxIcons:GetNumber()
         local cf=eb.DebuffCdFont:GetNumber()    local sf=eb.DebuffStackFont:GetNumber()
         if ds>0 then c.DebuffIconSize=ds end   if dm>0 then c.DebuffMaxIcons=dm end
         if cf>0 then c.CooldownFontSize=cf end if sf>0 then c.StackFontSize=sf end
         c.DebuffFilter = eb.DebuffFilter:GetText()
+        if eb.PvpDebuffCustom then c.PvpDebuffCustom = eb.PvpDebuffCustom:GetText() end
+        if eb.RaidDebuffCustom then c.RaidDebuffCustom = eb.RaidDebuffCustom:GetText() end
+        if eb.DungeonDebuffCustom then c.DungeonDebuffCustom = eb.DungeonDebuffCustom:GetText() end
         SaveDebuffIconToPreset()
+        if StoneGrid_PvpDebuffs then StoneGrid_PvpDebuffs:ReloadLookup() end
+        if StoneGrid_RaidDebuffs then StoneGrid_RaidDebuffs:UpdateZoneSpells() end
+        if StoneGrid_DungeonDebuffs then StoneGrid_DungeonDebuffs:UpdateZoneSpells() end
         SyncCooldownEBs()
         StoneGrid:UpdateAllAuras()
         SaveActiveProfile()
         SgMsg(L.MsgDebuffsSaved or "Debuff settings saved.")
     end)
 
-    Btn(panelDebuffs, L.Reset or "Reset", resetX, debuffIconSizeY - 48, SAVE_BTN_W, function()
+    Btn(panelDebuffs, L.Reset or "Reset", resetX, BOTTOM_BTN_Y, SAVE_BTN_W, function()
         local c = StoneGrid_Config
         c.ShowDebuffs=true c.DebuffPosition="BOTTOMRIGHT" c.DebuffIconSize=12 c.DebuffMaxIcons=4 c.DebuffFilter=""
         c.DebuffReverse=false
@@ -2334,6 +2507,21 @@ local function BuildMenu()
         if refresh.debuffPos        then refresh.debuffPos()        end
         LoadDebuffIconFromPreset()
         if eb.DebuffFilter   then eb.DebuffFilter:SetText("")     end
+        if eb.PvpDebuffCustom then eb.PvpDebuffCustom:SetText("") end
+        if eb.RaidDebuffCustom then eb.RaidDebuffCustom:SetText("") end
+        if eb.DungeonDebuffCustom then eb.DungeonDebuffCustom:SetText("") end
+        if StoneGrid_PvpDebuffs then
+            StoneGrid_PvpDebuffs:InitDefaults(c)
+            StoneGrid_PvpDebuffs:ReloadLookup()
+        end
+        if StoneGrid_RaidDebuffs then
+            StoneGrid_RaidDebuffs:InitDefaults(c)
+            StoneGrid_RaidDebuffs:UpdateZoneSpells()
+        end
+        if StoneGrid_DungeonDebuffs then
+            StoneGrid_DungeonDebuffs:InitDefaults(c)
+            StoneGrid_DungeonDebuffs:UpdateZoneSpells()
+        end
         refresh.chkCooldown()
         SyncCooldownEBs()
         StoneGrid:UpdateAllAuras()
@@ -2402,10 +2590,10 @@ local function BuildMenu()
         ShowProfileImportPaste()
     end)
 
-    Separator(panelProfile, -280)
-    SectionLabel(panelProfile, L.SectionInfo or "[ Info ]", -292)
+    Separator(panelProfile, -278)
+    SectionLabel(panelProfile, L.SectionInfo or "[ Info ]", -290)
     local ver = panelProfile:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    ver:SetPoint("TOPLEFT", 18, -308)
+    ver:SetPoint("TOPLEFT", 18, -306)
     ver:SetText((L.VersionLabel or "Version:") .. " 0.0.1a     " .. (L.AuthorLabel or "Author:") .. " platefobrain")
     ver:SetTextColor(0.65, 0.65, 0.65)
 end  -- BuildMenu
@@ -2445,13 +2633,18 @@ local function ShowMenu()
     if refresh.debuffEditLoad then refresh.debuffEditLoad() end
     if eb.BuffFilter      then eb.BuffFilter:SetText(StoneGrid_Config.BuffFilter   or "")  end
     if eb.DebuffFilter    then eb.DebuffFilter:SetText(StoneGrid_Config.DebuffFilter or "") end
+    if eb.PvpDebuffCustom then eb.PvpDebuffCustom:SetText(StoneGrid_Config.PvpDebuffCustom or "") end
+    if eb.RaidDebuffCustom then eb.RaidDebuffCustom:SetText(StoneGrid_Config.RaidDebuffCustom or "") end
+    if eb.DungeonDebuffCustom then eb.DungeonDebuffCustom:SetText(StoneGrid_Config.DungeonDebuffCustom or "") end
     if refresh.chkCooldown then refresh.chkCooldown()      end
     if eb.BuffCdFont      then eb.BuffCdFont:SetNumber(StoneGrid_Config.CooldownFontSize or 8)      end
     if eb.DebuffCdFont    then eb.DebuffCdFont:SetNumber(StoneGrid_Config.CooldownFontSize or 8)    end
     if eb.BuffStackFont   then eb.BuffStackFont:SetNumber(StoneGrid_Config.StackFontSize or 6)      end
     if eb.DebuffStackFont then eb.DebuffStackFont:SetNumber(StoneGrid_Config.StackFontSize or 6)    end
     if refresh.chkPartyStuns then refresh.chkPartyStuns() end
+    if refresh.chkDungeonDebuffs then refresh.chkDungeonDebuffs() end
     if eb.PartyCcSize then eb.PartyCcSize:SetNumber(StoneGrid_Config.PartyCcIconSize or 20) end
+    if eb.DungeonDebuffSize then eb.DungeonDebuffSize:SetNumber(StoneGrid_Config.DungeonDebuffIconSize or 20) end
     if refresh.oorCheck   then refresh.oorCheck()   end
     if refresh.chkHideParty then refresh.chkHideParty() end
     if refresh.chkRaidIcon then refresh.chkRaidIcon() end
