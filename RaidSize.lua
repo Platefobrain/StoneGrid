@@ -9,6 +9,7 @@ StoneGrid_RaidLayoutKeys = {
     "RaidWidth", "RaidHeight", "RaidSpacing", "RaidColumns", "RaidX", "RaidY",
     "ShowRaidPowerBar", "RaidPowerBarH",
     "ShowRaidStuns", "RaidCcIconSize",
+    "ShowRaidDebuffs", "RaidDebuffIconSize",
     "ShowRaidPets", "RaidPetWidth", "RaidPetHeight", "RaidPetSpacing",
     "RaidPetColumns", "RaidPetPosition", "RaidPetMax",
 }
@@ -201,6 +202,8 @@ function StoneGrid_RaidSizeDefaults(base)
         RaidPowerBarH = base.RaidPowerBarH or 3,
         ShowRaidStuns = base.ShowRaidStuns ~= false,
         RaidCcIconSize = base.RaidCcIconSize or 16,
+        ShowRaidDebuffs = base.ShowRaidDebuffs ~= false,
+        RaidDebuffIconSize = base.RaidDebuffIconSize or 16,
         ShowRaidPets = base.ShowRaidPets or false,
         RaidPetWidth = base.RaidPetWidth or 80,
         RaidPetHeight = base.RaidPetHeight or 14,
@@ -231,6 +234,7 @@ function StoneGrid_RaidSizeInitDefaults(cfg)
         cfg.RaidBySize["40"].RaidHeight = 16
         cfg.RaidBySize["40"].RaidColumns = 8
         cfg.RaidBySize["40"].RaidCcIconSize = 14
+        cfg.RaidBySize["40"].RaidDebuffIconSize = 14
     end
 
     for _, sz in ipairs(StoneGrid_RaidSizes) do

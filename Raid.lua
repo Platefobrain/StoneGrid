@@ -161,8 +161,11 @@ function StoneGrid_Raid:Create()
         f.visual:SetPoint("TOPLEFT", x, y)
         f.showPowerBar = pbH > 0
         f.powerBarH    = pbH
-        f.showCc       = layout.ShowRaidStuns
-        f.ccIconSize   = layout.RaidCcIconSize or 16
+        f.showPvp      = layout.ShowRaidStuns
+        f.pvpIconSize  = layout.RaidCcIconSize or 16
+        f.showPve      = layout.ShowRaidDebuffs
+        f.pveMode      = "raid"
+        f.pveIconSize  = layout.RaidDebuffIconSize or 16
         self.frames[unit] = f
         StoneGrid_UnitFrame:Update(f)
         StoneGrid_UnitFrame:UpdateRange(f)

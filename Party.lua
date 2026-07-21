@@ -151,8 +151,11 @@ function StoneGrid_Party:Create()
         f.visual:SetPoint("TOPLEFT", ox, oy)
         f.showPowerBar = pbH > 0
         f.powerBarH    = pbH
-        f.showCc       = cfg.ShowPartyStuns
-        f.ccIconSize   = cfg.PartyCcIconSize or 20
+        f.showPvp      = cfg.ShowPartyStuns
+        f.pvpIconSize  = cfg.PartyCcIconSize or 20
+        f.showPve      = cfg.ShowDungeonDebuffs ~= false
+        f.pveMode      = "dungeon"
+        f.pveIconSize  = cfg.DungeonDebuffIconSize or cfg.PartyCcIconSize or 20
         self.frames[unit] = f
         StoneGrid_UnitFrame:Update(f)
         StoneGrid_UnitFrame:UpdateRange(f)
